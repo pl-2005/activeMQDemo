@@ -1,0 +1,323 @@
+# ActiveMQ Demo 学习项目
+
+这是一个面向 Java 学习者的 ActiveMQ Demo 项目，目标是通过“先原生 JMS，再 Spring Boot JMS”的路线，逐步理解消息中间件的核心概念、编程模型和工程实践。
+
+当前项目已经整理为多模块结构：
+- `phase1-jms`：原生 JMS 学习模块
+- `phase2-springboot`：Spring Boot JMS 学习模块
+
+---
+
+## 1. 学习目标
+
+通过本项目，你将掌握：
+
+- MQ 的核心价值：异步、解耦、削峰
+- ActiveMQ 中的核心角色：Broker、Queue、Topic、Producer、Consumer
+- JMS 基础对象：`ConnectionFactory`、`Connection`、`Session`、`Message`
+- 消息确认机制：`AUTO_ACKNOWLEDGE`、`CLIENT_ACKNOWLEDGE`
+- Queue 与 Topic 的语义差异
+- Spring Boot 中 `JmsTemplate` 和 `@JmsListener` 的使用方式
+
+---
+
+## 2. 当前项目结构
+
+```text
+activeMQDemo
+├─ pom.xml
+├─ README.md
+├─ phase1-jms
+│  ├─ pom.xml
+│  └─ src
+│     ├─ main
+│     │  ├─ java
+│     │  │  ├─ queue
+│     │  │  │  ├─ QueueProducer.java
+│     │  │  │  ├─ QueueConsumer.java
+│     │  │  │  ├─ QueueConsumerAutoAck.java
+│     │  │  │  ├─ QueueConsumerClientAck.java
+│     │  │  │  └─ QueueProducerAckDemo.java
+│     │  │  └─ topic
+│     │  │     ├─ TopicPublisher.java
+│     │  │     ├─ TopicSubscriberA.java
+│     │  │     └─ TopicSubscriberB.java
+│     │  └─ resources
+│     └─ test
+└─ phase2-springboot
+   ├─ pom.xml
+   └─ src
+      ├─ main
+      │  ├─ java
+      │  └─ resources
+      └─ test
+```
+
+说明：
+- 根目录 `pom.xml` 是父工程，用于统一管理多模块。
+- `phase1-jms` 已有可运行示例。
+- `phase2-springboot` 目前只有模块骨架，代码尚未开始实现。
+
+---
+
+## 3. 环境要求
+
+- JDK 21
+- Maven 3.9+
+- ActiveMQ Classic 6.2.4
+
+推荐使用 Docker 启动 ActiveMQ：
+
+```bash
+docker run -d --name activemq ^
+  -p 61616:61616 -p 8161:8161 ^
+  rmohr/activemq
+```
+
+常用地址：
+- Broker：`tcp://localhost:61616`
+- 管理控制台：`http://localhost:8161`
+- 常见默认账号密码：`admin/admin`
+
+---
+
+## 4. 学习路线图
+
+```mermaid
+flowchart TD
+    phase1Queue[Phase1Queue] --> phase1Topic[Phase1Topic]
+    phase1Topic --> phase1Ack[Phase1Ack]
+    phase1Ack --> phase2Boot[Phase2SpringBoot]
+    phase2Boot --> phase2Producer[BootJmsTemplate]
+    phase2Producer --> phase2Consumer[BootJmsListener]
+```
+
+---
+
+## 5. Phase 1：原生 JMS
+
+`phase1-jms` 模块用于学习 JMS 底层 API，重点在于理解消息模型本身，而不是框架封装。
+
+### 5.1 任务 A：Queue 点对点模型
+
+目标：
+- 实现一个生产者、一个消费者
+- 验证 Queue 中一条消息通常只由一个消费者处理
+
+已完成内容：
+- `QueueProducer`：向 `demo.queue` 发送 10 条文本消息
+- `QueueConsumer`：从 `demo.queue` 接收并打印消息
+- 已验证 Broker 控制台中的消息堆积与清空过程
+
+关键结论：
+- Queue 适合订单、支付、任务分发这类“一个任务只执行一次”的场景
+- Queue 强调竞争消费和可靠处理
+
+思考题参考答案：
+- Queue 采用竞争消费模型，同一条消息通常只被一个消费者处理。
+- 异步发送可以降低主链路压力，实现削峰填谷。
+- 增加消费者实例可以提升吞吐量，适合后台任务分发。
+
+建议继续思考：
+- 为什么“消息持久化”不等于“业务绝不丢失”？
+- 当消息堆积时，优先扩消费者还是优化业务处理逻辑？
+
+### 5.2 任务 B：Topic 发布订阅模型
+
+目标：
+- 实现一个发布者、两个订阅者
+- 验证同一消息会被多个订阅者分别接收
+
+已完成内容：
+- `TopicPublisher`：向 `demo.topic` 发布消息
+- `TopicSubscriberA` / `TopicSubscriberB`：接收同一 Topic 消息
+- 已验证双订阅者控制台都能收到广播消息
+
+关键结论：
+- Topic 适合通知广播、事件传播、事件总线
+- Topic 强调“同一事件被多个下游同时感知”
+
+思考题参考答案：
+- Topic 采用发布订阅模型，一条消息可被多个订阅者分别接收。
+- 发布者与订阅者解耦，新增订阅者通常不需要修改发布者代码。
+- 一个业务事件可驱动多个下游系统，如通知、积分、报表。
+
+建议继续思考：
+- 为什么订阅者启动晚了可能收不到历史消息？
+- 如果既想广播，又想某处理只执行一次，该如何组合 Queue 和 Topic？
+
+### 5.3 任务 C：消息确认与异常实验
+
+目标：
+- 理解 `AUTO_ACKNOWLEDGE` 与 `CLIENT_ACKNOWLEDGE`
+- 观察异常时未确认消息的行为
+
+已完成内容：
+- `QueueConsumerAutoAck`：自动确认消费者
+- `QueueConsumerClientAck`：手动确认消费者
+- `QueueProducerAckDemo`：向 `demo.queue.ack` 发送 `OK-*` 与 `FAIL_ME` 测试消息
+- 已完成异常实验：命中 `FAIL_ME` 后抛出异常，Broker 中出现滞留消息
+
+实验现象总结：
+- `AUTO_ACKNOWLEDGE`：使用简单，但业务几乎无法精细控制确认时机
+- `CLIENT_ACKNOWLEDGE`：适合“处理成功再确认”的可靠消费模式
+- 当异常路径未执行 `acknowledge()` 时，消息会保留在 Broker，后续可能重新投递
+
+思考题参考答案：
+- 生产环境需要幂等，是因为 MQ 常见语义是“至少一次”，重复消费并不罕见。
+- 如果业务本身非幂等，重复消费可能带来重复扣费、重复下单等副作用。
+
+建议继续思考：
+- 为什么要在日志中记录 `messageId` 或业务主键？
+- 如何区分是 Broker 重投还是业务层重复提交？
+
+---
+
+## 6. Phase 1 当前进度
+
+- [x] Queue 生产者与消费者
+- [x] Topic 发布者与双订阅者
+- [x] `AUTO_ACKNOWLEDGE` 实验
+- [x] `CLIENT_ACKNOWLEDGE` 实验
+- [x] 异常不确认导致消息滞留实验
+
+Phase 1 已完成基础学习闭环，可以作为后续 Spring Boot 封装学习的对照组。
+
+---
+
+## 7. Phase 2：Spring Boot JMS
+
+`phase2-springboot` 模块用于学习框架化写法，让你在已经理解 JMS 原理的基础上，掌握企业项目里更常见的开发方式。
+
+### 计划内容
+
+1. 创建 Spring Boot 启动类
+2. 配置 `application.yml`
+3. 使用 `JmsTemplate` 发送消息
+4. 使用 `@JmsListener` 接收消息
+5. 完成本地运行与验证
+
+### 当前状态
+
+- [x] 已建立模块骨架
+- [x] 已完成 Phase 2 多模块 `pom` 配置并通过 `compile`
+- [x] 已创建 Spring Boot 启动类
+- [x] 已创建 `application.yml`
+- [x] 已实现 `JmsTemplate` 发送服务
+- [x] 已实现 `@JmsListener` 消费
+- [x] 已在启动类中加入临时发送触发逻辑
+- [x] 已完成本地运行验证，消息发送与消费正常
+
+### 当前实现说明
+
+- 启动类：`com.example.Application`
+- 发送服务：`com.example.services.MessageProducerService`
+- 消费监听：`com.example.components.MessageConsumerListener`
+- 队列配置：`demo.queue.boot`
+
+当前 Phase 2 已具备最小可运行闭环：
+- Spring Boot 应用启动
+- `CommandLineRunner` 调用发送服务
+- `JmsTemplate` 发送消息到队列
+- `@JmsListener` 自动消费并打印日志
+
+### Phase 2 当前结论
+
+- 你已经完成了从“原生 JMS”到“Spring Boot JMS”的第一轮过渡。
+- 与 Phase 1 相比，Spring Boot 明显减少了连接创建、会话管理、消费者注册等样板代码。
+- 通过 `application.yml` + `JmsTemplate` + `@JmsListener`，已经建立了一个更贴近企业开发的最小消息应用。
+- 当前实现适合继续扩展为控制器触发发送、多环境配置、异常处理、重试与幂等方案。
+
+---
+
+## 8. 如何运行
+
+### 8.1 构建整个项目
+
+在根目录执行：
+
+```bash
+mvn clean package -DskipTests
+```
+
+### 8.2 运行 Phase 1 示例
+
+在 IDEA 中直接运行对应 `main` 方法即可：
+
+- Queue：
+  - `queue.QueueProducer`
+  - `queue.QueueConsumer`
+- Topic：
+  - `topic.TopicPublisher`
+  - `topic.TopicSubscriberA`
+  - `topic.TopicSubscriberB`
+- Ack：
+  - `queue.QueueProducerAckDemo`
+  - `queue.QueueConsumerAutoAck`
+  - `queue.QueueConsumerClientAck`
+
+建议顺序：
+- Queue：先消费者，再生产者
+- Topic：先两个订阅者，再发布者
+- Ack：先发送，再根据实验目标启动不同消费者
+
+### 8.3 运行 Phase 2 示例
+
+在 IDEA 中运行：
+
+- `com.example.Application`
+
+当前实现的运行方式：
+- 应用启动后，`CommandLineRunner` 会自动调用 `MessageProducerService`
+- 应用会向 `demo.queue.boot` 发送一条消息
+- `MessageConsumerListener` 会监听该队列并输出消费日志
+
+预期现象：
+- 控制台出现发送日志
+- 控制台出现接收日志
+
+---
+
+## 9. 常见问题
+
+### 9.1 无法连接 ActiveMQ
+
+检查：
+- `61616` 端口是否已开放
+- Broker 是否已启动
+- 用户名密码是否正确
+
+### 9.2 消费者收不到消息
+
+检查：
+- Queue/Topic 名称是否完全一致
+- Topic 是否先启动订阅者再启动发布者
+- 是否被其他消费者先消费掉
+
+### 9.3 消息重复或滞留
+
+检查：
+- 是否使用了 `CLIENT_ACKNOWLEDGE`
+- 是否在异常路径遗漏 `acknowledge()`
+- 是否因为业务异常导致进程提前退出
+
+---
+
+## 10. 下一步建议
+
+完成本阶段后，建议继续深入：
+
+1. 在 `phase2-springboot` 中实现 `JmsTemplate` 与 `@JmsListener`
+2. 对比原生 JMS 与 Spring Boot JMS 的写法差异
+3. 继续扩展死信队列、重试、幂等、事务等主题
+
+---
+
+## 11. 当前说明
+
+这份 README 依据当前工程真实状态重新生成。  
+如果后续你继续完成 Phase 2，建议再同步更新本文件中的：
+- 模块结构
+- 已完成进度
+- 运行步骤
+- 学习总结
