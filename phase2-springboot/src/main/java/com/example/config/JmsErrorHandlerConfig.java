@@ -8,7 +8,7 @@ import org.springframework.util.ErrorHandler;
 
 @Slf4j
 @Configuration
-public class JmsErrorHandler {
+public class JmsErrorHandlerConfig {
 
     @Bean
     public ErrorHandler jmsErrorHandler() {
