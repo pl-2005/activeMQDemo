@@ -1,22 +1,23 @@
 package com.example.services;
 
+import com.example.config.IdempotencyProperties;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.time.Duration;
 
-/**
- * 学习版：进程内幂等。后续 Phase3 将替换为 Redis SET NX。
- */
 @Service
+@RequiredArgsConstructor
 public class IdempotencyService {
 
-    private final ConcurrentMap<String, Boolean> processedKeys = new ConcurrentHashMap<>();
+    private final StringRedisTemplate redisTemplate;
+    private final IdempotencyProperties properties;
 
-    /**
-     * @return true 首次；false 重复
-     */
-    public boolean markIfFirstTime(String key) {
-        return processedKeys.putIfAbsent(key, Boolean.TRUE) == null;
+    public boolean markIfFirstTime(String idempotencyKey) {
+        String key = properties.getRedisKeyPrefix() + idempotencyKey;
+        Duration ttl = Duration.ofSeconds(properties.getTtlSeconds());
+        Boolean ok = redisTemplate.opsForValue().setIfAbsent(key, "1", ttl);
+        return Boolean.TRUE.equals(ok);
     }
 }
