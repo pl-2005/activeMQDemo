@@ -1,7 +1,7 @@
 ###
 POST http://localhost:8080/api/message
 Content-Type: application/json
-X-Idempotency-Key: KEY-1
+X-Idempotency-Key: KEY-123
 
 {
   "text": "hello world"

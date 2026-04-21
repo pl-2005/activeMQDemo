@@ -40,6 +40,7 @@ public class MessageController {
         }
 
         messageProducerService.sendMessage(request.getText());
+        idempotencyService.saveAuditRecord(idempotencyKey, request.getText());
 
         return ResponseEntity.ok(new ApiResponseVo<>(
                 "200",
