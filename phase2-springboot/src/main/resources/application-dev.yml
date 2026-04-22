@@ -1,0 +1,29 @@
+# 本地 / 开发：默认连本机 Docker ActiveMQ、Redis、MySQL（与 README 一致）
+spring:
+  activemq:
+    broker-url: tcp://localhost:61616
+    user: admin
+    password: admin
+  jms:
+    pub-sub-domain: false
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      # 无密码可省略；有密码时取消注释
+      # password: your-redis-password
+  datasource:
+    url: jdbc:mysql://localhost:3306/activemq_demo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+    username: root
+    password: "123456"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+demo:
+  jms:
+    queue-name: demo.queue.boot
+  replay:
+    max-times: 3
+
+logging:
+  level:
+    root: INFO

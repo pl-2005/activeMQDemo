@@ -21,6 +21,7 @@ Thumbs.db
 .env.*
 !.env.example
 *.local
+phase2-springboot/src/main/resources/application-local.yml
 
 # Temporary files
 *.tmp

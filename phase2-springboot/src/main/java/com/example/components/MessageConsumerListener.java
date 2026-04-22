@@ -6,6 +6,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.stereotype.Component;
 
+/**
+ * 消息消费者监听器
+ */
 @Slf4j
 @Component
 public class MessageConsumerListener {

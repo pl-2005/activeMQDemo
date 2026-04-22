@@ -1,0 +1,32 @@
+# 生产示例：敏感信息由环境变量注入，勿把真实密码写入仓库
+# 启动示例：SPRING_PROFILES_ACTIVE=prod \
+#   ACTIVEMQ_BROKER_URL=tcp://mq.prod:61616 MYSQL_URL=jdbc:mysql://db:3306/activemq_demo?... \
+#   java -jar phase2-springboot.jar
+spring:
+  activemq:
+    broker-url: ${ACTIVEMQ_BROKER_URL:tcp://localhost:61616}
+    user: ${ACTIVEMQ_USER:admin}
+    password: ${ACTIVEMQ_PASSWORD:admin}
+  jms:
+    pub-sub-domain: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/activemq_demo?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+# 生产建议使用独立队列名前缀，避免误连错 Broker 时与 dev 混在一起
+demo:
+  jms:
+    queue-name: ${DEMO_JMS_QUEUE_NAME:demo.queue.boot}
+  replay:
+    max-times: ${DEMO_REPLAY_MAX_TIMES:3}
+
+logging:
+  level:
+    root: WARN

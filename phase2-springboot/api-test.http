@@ -1,4 +1,7 @@
 ###
+GET http://localhost:8080/admin/dlq/peek
+
+###
 POST http://localhost:8080/api/message
 Content-Type: application/json
 X-Idempotency-Key: KEY-123
@@ -10,10 +13,20 @@ X-Idempotency-Key: KEY-123
 ###
 POST http://localhost:8080/api/message
 Content-Type: application/json
-X-Idempotency-Key: KEY-2
+X-Idempotency-Key: KEY-2-2
 
 {
-  "text": " FAIL_ME"
+  "text": "FAIL_ME"
 }
+
+###
+
+# curl -X POST "http://localhost:8080/api/message/replay"
+#  -H "Content-Type: application/json"
+#  -d "{\"sourceKey\":\"KEY-REPLAY-1\",\"text\":\"hello replay\",\"operator\":\"peili\",\"reason\":\"fix bug and replay\"}"
+POST http://localhost:8080/api/message/replay
+Content-Type: application/json
+
+{"sourceKey":"KEY-REPLAY-1","text":"hello replay","operator":"peilin","reason":"fix bug and replay"}
 
 ###

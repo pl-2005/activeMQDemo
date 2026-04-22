@@ -1,0 +1,11 @@
+# 复制为同目录下的 application-local.yml（已加入 .gitignore），用于本机密码与端口覆盖。
+# Spring Boot 会额外加载 profile「local」，需在 application.yml 中将 spring.profiles.active 设为：
+#   dev,local
+# 或在启动参数中：--spring.profiles.active=dev,local
+#
+# spring:
+#   datasource:
+#     password: "your-local-mysql-password"
+#   data:
+#     redis:
+#       password: your-redis-password
