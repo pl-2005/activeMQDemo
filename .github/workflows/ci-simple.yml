@@ -1,0 +1,27 @@
+# 简单 GitHub Actions 示例：推送或 PR 时自动用 Maven 编译并跑测试
+name: Simple CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  # 在 Actions 里点 "Run workflow" 也可手动运行
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Maven 测试
+        run: mvn -B -ntp test
