@@ -3,7 +3,7 @@ package com.example.constants;
 /**
  * 业务响应码（与 HTTP 状态码解耦）
  */
-public final class ApiCode
+public final class ApiCode {
     private ApiCode() {}
 
     /** 成功 */
