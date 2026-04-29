@@ -67,8 +67,11 @@ public class IdempotencyService {
         return nextReplayNo;
     }
 
-    public Integer getMaxReplayTimes(String sourceKey) {
-        return replayProperties.getMaxTimes();
+    /**
+     * 获取最大回放次数
+     */
+    public Integer getMaxReplayTimes() {
+        return replayProperties.getMaxTimes() == null ? 3 : replayProperties.getMaxTimes();
     }
 
     /**

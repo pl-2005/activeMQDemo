@@ -1,5 +1,7 @@
 package com.example.controllers;
 
+import com.example.constants.ApiCode;
+import com.example.constants.ApiMessage;
 import com.example.pojos.dto.MessageSendDto;
 import com.example.pojos.dto.ReplayRequestDto;
 import com.example.pojos.entitis.IdempotencyRecord;
@@ -40,31 +42,18 @@ public class MessageController {
         boolean firstTime = idempotencyService.markIfFirstTime(idempotencyKey);
 
         if (!firstTime) {
-            return ResponseEntity.ok(new ApiResponseVo<>(
-                    "200",
-                    "重复请求，已忽略",
-                    Map.of(
-                            "queue", "demo.queue.boot",
-                            "text", request.getText(),
-                            "idempotencyKey", idempotencyKey,
-                            "firstTime", false
-                    )
-            ));
+            return ResponseEntity.ok(ApiResponseVo.fail(ApiCode.IDEMPOTENT_DUPLICATE, ApiMessage.SEND_DUPLICATE, null));
         }
 
         messageProducerService.sendMessage(request.getText());
         idempotencyService.saveAuditRecord(idempotencyKey, request.getText());
 
-        return ResponseEntity.ok(new ApiResponseVo<>(
-                "200",
-                "消息已发送",
-                Map.of(
-                        "queue", "demo.queue.boot",
-                        "text", request.getText(),
-                        "idempotencyKey", idempotencyKey,
-                        "firstTime", true
-                )
-        ));
+        return ResponseEntity.ok(ApiResponseVo.success(ApiMessage.SEND_SUCCESS, Map.of(
+                "queue", "demo.queue.boot",
+                "text", request.getText(),
+                "idempotencyKey", idempotencyKey,
+                "firstTime", true
+        )));
     }
 
     /**
@@ -75,25 +64,14 @@ public class MessageController {
     @PostMapping("/replay")
     public ResponseEntity<ApiResponseVo<Map<String, Object>>> replay(@Valid @RequestBody ReplayRequestDto request) {
         if (!idempotencyService.canReplay(request.getSourceKey())) {
-            return ResponseEntity.ok(new ApiResponseVo<>(
-                    "409",
-                    "超过最大回放次数，已拒绝",
-                    Map.of(
-                            "sourceKey", request.getSourceKey(),
-                            "maxTimes", idempotencyService.getMaxReplayTimes(request.getSourceKey())
-                    )
-            ));
+            return ResponseEntity.ok(ApiResponseVo.fail(ApiCode.REPLAY_LIMIT_EXCEEDED, ApiMessage.REPLAY_LIMIT_EXCEEDED, null));
         }
 
         String replayKey = request.getSourceKey() + ":replay:" + System.currentTimeMillis();
 
         boolean firstTime = idempotencyService.markIfFirstTime(replayKey);
         if (!firstTime) {
-            return ResponseEntity.ok(new ApiResponseVo<>(
-                    "200",
-                    "回放请求重复，已忽略",
-                    Map.of("idempotencyKey", replayKey, "firstTime", false)
-            ));
+            return ResponseEntity.ok(ApiResponseVo.fail(ApiCode.IDEMPOTENT_DUPLICATE, ApiMessage.REPLAY_DUPLICATE, null));
         }
 
         messageProducerService.sendMessage(request.getText());
@@ -105,16 +83,12 @@ public class MessageController {
                 request.getReason()
         );
 
-        return ResponseEntity.ok(new ApiResponseVo<>(
-                "200",
-                "回放消息已发送",
-                Map.of(
-                        "idempotencyKey", replayKey,
-                        "sourceKey", request.getSourceKey(),
-                        "firstTime", true,
-                        "replayNo", replayNo
-                )
-        ));
+        return ResponseEntity.ok(ApiResponseVo.success(ApiMessage.REPLAY_SUCCESS, Map.of(
+                "idempotencyKey", replayKey,
+                "sourceKey", request.getSourceKey(),
+                "firstTime", true,
+                "replayNo", replayNo
+        )));
     }
 
     /**
@@ -125,14 +99,10 @@ public class MessageController {
             @RequestParam("sourceKey") String sourceKey
     ) {
         List<IdempotencyRecord> history = idempotencyService.getReplayHistory(sourceKey);
-        return ResponseEntity.ok(new ApiResponseVo<>(
-                "200",
-                "查询成功",
-                Map.of(
-                        "sourceKey", sourceKey,
-                        "count", history.size(),
-                        "items", history
-                )
-        ));
+        return ResponseEntity.ok(ApiResponseVo.success(ApiMessage.QUERY_SUCCESS, Map.of(
+                "sourceKey", sourceKey,
+                "count", history.size(),
+                "items", history
+        )));
     }
 }
